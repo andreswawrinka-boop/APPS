@@ -176,6 +176,13 @@
     <div class="evento"><button type="button" class="b-naranja" onclick="marcar('t_redosis')">Primera redosis</button><input type="text" id="t_redosis" placeholder="m:ss" inputmode="numeric"></div>
     <div class="ayuda">Los eventos que aún no hayan ocurrido se censuran en el momento de la redosis.</div>
   </div>
+  <h3 style="margin:18px 0 4px">Cierre de piel <span class="ayuda">(último punto de sutura, ANTES de cualquier reversor; solo observacional)</span></h3>
+  <div class="evento"><button type="button" class="b-morado" onclick="marcar('t_cierre')">Cierre de piel</button><input type="text" id="t_cierre" placeholder="m:ss" inputmode="numeric"></div>
+  <div class="fila">
+    <div><label>Conteo TOF</label><select id="tof_cierre_conteo"><option value="">—</option><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+    <div id="bloqueRazonCierre" style="display:none"><label>Razón TOF en pantalla</label><input type="number" id="tof_cierre_razon" inputmode="decimal" step="0.01"></div>
+  </div>
+  <div class="calc" id="calcCierre">La profundidad del bloqueo se clasifica sola.</div>
   <div class="evento"><button type="button" class="b-rojo" onclick="marcar('t_fin')">■ Fin del monitoreo</button><input type="text" id="t_fin" placeholder="m:ss" inputmode="numeric"></div>
   <div class="ayuda">"Fin del monitoreo" es obligatorio: si un evento no ocurrió, ese tiempo se usa como censura en el análisis.</div>
 </div></section>
@@ -240,7 +247,7 @@
 /* ====== CONFIGURACIÓN (pegue aquí su URL de Apps Script y la misma clave) ====== */
 let URL_SCRIPT = 'https://script.google.com/macros/s/AKfycby9YnM-M_SkDQf87eMAJWQylqKxfMStw7MfKJsFhjjDtjWhezxkGVXE-1A8kX7-7shX/exec';
 let CLAVE = 'tesis2026';
-const VERSION = '1.5';
+const VERSION = '1.9';
 /* ============================================================================== */
 const $ = id => document.getElementById(id);
 const LS = {
@@ -251,10 +258,10 @@ URL_SCRIPT = LS.get('bnm2_url', URL_SCRIPT);
 CLAVE = LS.get('bnm2_clave', CLAVE);
 
 const CAMPOS = ['fecha_cirugia','edad','asa','peso','talla','creatinina','tipo_cirugia','vaporizador','temp_inicial','temp_minima',
-  'dosis_mg','tof_basal','t_tof0','t1_max','t_t2','t_tof09','t_reversor','dosis_reversor','t_redosis','t_fin','hora_incision','hora_cierre','duracion','motivo_retiro','observaciones'];
+  'dosis_mg','tof_basal','t_tof0','t1_max','t_t2','t_tof09','t_reversor','dosis_reversor','t_redosis','t_cierre','tof_cierre_conteo','tof_cierre_razon','t_fin','hora_incision','hora_cierre','duracion','motivo_retiro','observaciones'];
 const CHECKS = ['erc','hepatopatia','magnesio','aminoglucosido','succinilcolina'];
 const RADIOS = ['sede','sexo','inhalado','bloqueante','reversor','redosis','retirado'];
-const TIEMPOS = ['t_tof0','t_t2','t_tof09','t_reversor','t_redosis','t_fin'];
+const TIEMPOS = ['t_tof0','t_t2','t_tof09','t_reversor','t_redosis','t_cierre','t_fin'];
 
 function tog(id) { $(id).classList.toggle('cerrada'); }
 function toast(msg, ms = 2200) { const t = $('toast'); t.textContent = msg; t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', ms); }
@@ -306,6 +313,17 @@ async function marcar(id) {
   if (id === 't_fin') clearInterval(timer);
 }
 
+/* ---------- profundidad al cierre de piel (categorías de la Tabla 4) ---------- */
+function profundidad(conteo, razon, basal) {
+  if (conteo === '' || conteo === null) return { cat: '', norm: '' };
+  conteo = Number(conteo);
+  if (conteo === 0) return { cat: 'profundo', norm: '' };
+  if (conteo < 4) return { cat: 'moderado', norm: '' };
+  if (razon === null || razon === '' || !basal) return { cat: '', norm: '' };
+  const n = r2(razon / basal, 2);
+  return { cat: n < 0.4 ? 'superficial' : n < 0.9 ? 'minimo' : 'recuperado', norm: n };
+}
+const NOMBRE_PROF = { profundo: 'Profundo (TOF 0)', moderado: 'Moderado (TOF 1–3)', superficial: 'Superficial (razón norm < 0,4)', minimo: 'Mínimo (0,4 – < 0,9)', recuperado: 'Recuperado (≥ 0,9)' };
 /* ---------- cálculos ---------- */
 function calcular() {
   const p = num('peso'), t = num('talla'), sx = radio('sexo');
@@ -329,6 +347,10 @@ function calcular() {
     if (m < 0) m += 1440; // cirugía que pasa la medianoche
     $('duracion').value = m; $('calcDur').innerHTML = `Duración: <b>${m} min</b>`;
   } else { $('duracion').value = ''; $('calcDur').textContent = 'La duración se calcula sola.'; }
+  const cc = $('tof_cierre_conteo').value;
+  $('bloqueRazonCierre').style.display = cc === '4' ? 'block' : 'none';
+  const pf = profundidad(cc, num('tof_cierre_razon'), b);
+  $('calcCierre').innerHTML = pf.cat ? `Profundidad al cierre: <b>${NOMBRE_PROF[pf.cat]}</b>${pf.norm !== '' ? ' · razón normalizada <b>' + co(pf.norm) + '</b>' : ''}` : (cc === '4' ? 'Escriba la razón TOF (y la basal) para clasificar.' : 'La profundidad del bloqueo se clasifica sola.');
   $('avisoSux').style.display = $('succinilcolina').checked ? 'block' : 'none';
   $('bloqueRev').style.display = (radio('reversor') && radio('reversor') !== 'Ninguno') ? 'block' : 'none';
   $('bloqueRedosis').style.display = radio('redosis') === 'Sí' ? 'block' : 'none';
@@ -342,7 +364,7 @@ function recoger() {
   CAMPOS.forEach(k => d[k] = $(k).value.trim());
   CHECKS.forEach(k => d[k] = $(k).checked ? 'Sí' : 'No');
   RADIOS.forEach(k => d[k] = radio(k));
-  ['edad','peso','talla','creatinina','vaporizador','temp_inicial','temp_minima','dosis_mg','tof_basal','t1_max','dosis_reversor','duracion']
+  ['edad','peso','talla','creatinina','vaporizador','temp_inicial','temp_minima','dosis_mg','tof_basal','t1_max','dosis_reversor','duracion','tof_cierre_razon']
     .forEach(k => d[k] = num(k) === null ? '' : num(k));
   TIEMPOS.forEach(k => { const s = aSeg($(k).value); d[k] = s === null ? '' : Math.round(s); });
   d.imc = r2(c.imc, 1); d.peso_ideal = r2(c.pi, 1); d.peso_magro = r2(c.pm, 1);
@@ -353,6 +375,9 @@ function recoger() {
   if (d.reversor === 'Ninguno') { d.t_reversor = ''; d.dosis_reversor = ''; }
   if (d.retirado !== 'Sí') d.motivo_retiro = '';
   if (d.redosis !== 'Sí') d.t_redosis = '';
+  if (d.tof_cierre_conteo !== '4') d.tof_cierre_razon = '';
+  const pf = profundidad(d.tof_cierre_conteo, d.tof_cierre_razon, d.tof_basal);
+  d.prof_cierre = pf.cat; d.tof_cierre_norm = pf.norm;
   d.version = VERSION;
   return d;
 }
@@ -368,6 +393,13 @@ function problemas(d) {
   if (d.t_fin === '') err.push('Fin del monitoreo');
   if (!d.reversor) err.push('Reversor (marque "Ninguno" si no se usó)');
   if (d.redosis === 'Sí' && d.t_redosis === '') err.push('Tiempo de la primera redosis');
+  if (d.retirado !== 'Sí') {
+    if (d.t_cierre === '') err.push('Tiempo del cierre de piel');
+    if (d.tof_cierre_conteo === '') err.push('Conteo TOF al cierre de piel');
+    else if (d.tof_cierre_conteo === '4' && d.tof_cierre_razon === '') err.push('Razón TOF al cierre de piel');
+  }
+  if (d.tof_cierre_razon !== '' && (d.tof_cierre_razon < 0 || d.tof_cierre_razon > 1.6)) av.push('Razón TOF al cierre fuera de rango (0 – 1,6).');
+  if (d.reversor !== 'Ninguno' && d.t_reversor !== '' && d.t_cierre !== '' && d.t_reversor < d.t_cierre) av.push('El reversor se dio ANTES del cierre de piel: la medición al cierre quedará marcada.');
   if (!d.hora_incision || !d.hora_cierre) err.push('Horas de incisión y cierre de piel');
   if (d.duracion !== '' && d.duracion > 900) av.push('Duración > 15 h: verifique las horas.');
   if (d.succinilcolina === 'Sí') av.push('Succinilcolina previa: el paciente cumple criterio de exclusión.');
@@ -381,7 +413,7 @@ function problemas(d) {
   if (d.t_fin !== '') TIEMPOS.forEach(k => { if (k !== 't_fin' && d[k] !== '' && d[k] > d.t_fin) av.push(`${k} es posterior al fin del monitoreo.`); });
   return { err, av };
 }
-const ETIQ = { t_tof0: 'TOF = 0', t_t2: 'Reaparece T2', t_tof09: 'TOF norm ≥ 0,9', t_reversor: 'Reversor', t_redosis: 'Primera redosis', t_fin: 'Fin del monitoreo' };
+const ETIQ = { t_tof0: 'TOF = 0', t_t2: 'Reaparece T2', t_tof09: 'TOF norm ≥ 0,9', t_reversor: 'Reversor', t_redosis: 'Primera redosis', t_cierre: 'Cierre de piel', t_fin: 'Fin del monitoreo' };
 function revisar() {
   const d = recoger(), p = problemas(d);
   let h = '';
@@ -394,6 +426,7 @@ function revisar() {
   TOF basal ${d.tof_basal} · Inhalado ${d.inhalado || '—'} ${d.vaporizador !== '' ? d.vaporizador + ' %' : ''}</p>`;
   h += TIEMPOS.filter(k => !(k === 't_reversor' && d.reversor === 'Ninguno') && !(k === 't_redosis' && d.redosis !== 'Sí')).map(k => `${ETIQ[k]}: <b>${d[k] === '' ? '—' : fmt(d[k]) + ' (' + d[k] + ' s)'}</b>`).join('<br>');
   h += `<br>Reversor: <b>${d.reversor}</b>${d.dosis_reversor ? ' ' + d.dosis_reversor + ' mg' : ''}`;
+  h += `<br>Cierre de piel: TOF <b>${d.tof_cierre_conteo || '—'}</b>${d.tof_cierre_razon !== '' ? ' · razón ' + d.tof_cierre_razon : ''} → <b>${d.prof_cierre ? NOMBRE_PROF[d.prof_cierre] : '—'}</b>`;
   $('resumen').innerHTML = h;
   dlg.querySelector('.b-verde').disabled = p.err.length > 0;
   dlg.querySelector('.b-verde').style.opacity = p.err.length ? .4 : 1;
@@ -410,6 +443,7 @@ const MAPA = {
   reversor: { 'Ninguno': 'ninguno', 'Sugammadex': 'sugammadex', 'Neostigmina': 'neostigmina' },
   motivo_retiro: { 'Pérdida de calidad del registro aceleromiográfico': 'perdida_calidad', 'Modificación no protocolizada del plan anestésico': 'cambio_plan', 'Evento adverso grave': 'evento_adverso', 'Otro': 'otro' }
 };
+const ED95 = { 'Rocuronio': 0.3, 'Vecuronio': 0.05, 'Cisatracurio': 0.05 };  // mg/kg
 const m = (k, v) => (v === '' || v === undefined) ? '' : (MAPA[k][v] !== undefined ? MAPA[k][v] : v);
 const b01 = v => v === 'Sí' ? 1 : 0;
 // estado: 1 = evento observado; 2 = reversor antes del evento (riesgo competitivo); 0 = censurado al fin del monitoreo
@@ -438,10 +472,16 @@ function paraR(d) {
     magnesio: b01(d.magnesio), aminoglucosido: b01(d.aminoglucosido), succinilcolina_previa: b01(d.succinilcolina),
     bloqueante: m('bloqueante', d.bloqueante), dosis_mg: d.dosis_mg,
     dosis_mgkg_real: d.dosis_kg_real, dosis_mgkg_ideal: d.dosis_kg_ideal,
+    dosis_ed95: (d.dosis_kg_ideal !== '' && ED95[d.bloqueante]) ? r2(d.dosis_kg_ideal / ED95[d.bloqueante], 2) : '',
     tof_basal: d.tof_basal,
     t_tof0_seg: d.t_tof0, t1_dep_max_pct: d.t1_max, t_t2_seg: d.t_t2, t_tof09_seg: d.t_tof09,
     reversor: m('reversor', d.reversor), reversor_dosis_mg: d.dosis_reversor, t_reversor_seg: d.t_reversor,
-    redosis: b01(d.redosis), t_redosis_seg: d.t_redosis, t_fin_seg: d.t_fin,
+    redosis: b01(d.redosis), t_redosis_seg: d.t_redosis,
+    t_cierre_seg: d.t_cierre, tof_cierre_conteo: d.tof_cierre_conteo === '' ? '' : Number(d.tof_cierre_conteo),
+    tof_cierre_razon: d.tof_cierre_razon, tof_cierre_norm: d.tof_cierre_norm, profundidad_cierre: d.prof_cierre,
+    recuperacion_incompleta_cierre: d.prof_cierre === '' ? '' : (d.prof_cierre === 'recuperado' ? 0 : 1),
+    cierre_tras_reversor: (rev !== '' && d.t_cierre !== '' && rev < d.t_cierre) ? 1 : 0,
+    t_fin_seg: d.t_fin,
     inicio_tiempo_seg: ini[0], inicio_evento: ini[1],
     t2_tiempo_seg: t2[0], t2_estado: t2[1],
     rec09_tiempo_seg: r9[0], rec09_estado: r9[1],
