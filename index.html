@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14213D">
+<title>Anestesiología · Kennedy y Bosa</title>
+<style>
+  :root{ --navy:#14213D; --morado:#5E35B1; --azul:#0057FF; --fondo:#EEF3FF; --blanco:#FFFFFF; }
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--fondo);color:var(--navy)}
+  header{background:var(--navy);color:#fff;padding:28px 20px 24px;text-align:center}
+  header h1{margin:0;font-size:22px}
+  header p{margin:6px 0 0;font-size:14px}
+  main{max-width:560px;margin:0 auto;padding:24px 16px 40px;display:grid;gap:18px}
+  a.tarjeta{display:flex;align-items:center;gap:16px;text-decoration:none;color:#fff;border-radius:18px;padding:22px 20px;border:3px solid var(--navy);box-shadow:0 6px 0 var(--navy);transition:transform .08s}
+  a.tarjeta:active{transform:translateY(4px);box-shadow:0 2px 0 var(--navy)}
+  .bnm{background:var(--morado)}
+  .cal{background:var(--azul)}
+  .icono{font-size:38px;line-height:1;flex:0 0 auto}
+  .texto h2{margin:0 0 4px;font-size:20px}
+  .texto p{margin:0;font-size:14px;line-height:1.4}
+  .flecha{margin-left:auto;font-size:26px;font-weight:800}
+  footer{text-align:center;font-size:12.5px;padding:0 16px 24px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Anestesiología</h1>
+  <p>Hospitales de Kennedy y Bosa · Subred Integrada de Servicios de Salud Suroccidente</p>
+</header>
+<main>
+  <a class="tarjeta bnm" href="tesis_bnm.html">
+    <div class="icono">⏱️</div>
+    <div class="texto">
+      <h2>Tesis BNM</h2>
+      <p>Registro de pacientes: bloqueantes neuromusculares y monitoreo TOF</p>
+    </div>
+    <div class="flecha">›</div>
+  </a>
+  <a class="tarjeta cal" href="app-calificaciones.html">
+    <div class="icono">📝</div>
+    <div class="texto">
+      <h2>Calificaciones</h2>
+      <p>Notas conductual y práctica de los estudiantes de anestesiología</p>
+    </div>
+    <div class="flecha">›</div>
+  </a>
+</main>
+<footer>Dr. Andrés Robayo C.</footer>
+</body>
+</html>
